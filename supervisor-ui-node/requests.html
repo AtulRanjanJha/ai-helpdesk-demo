@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Supervisor Requests</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f3f7fa;
+      padding: 0;
+      margin: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+      background: white;
+      padding: 32px 28px;
+      border-radius: 18px;
+    }
+    h2 {
+      color: #306090;
+      margin-top: 0;
+      text-align: center;
+    }
+    .request {
+      padding: 20px;
+      margin-bottom: 18px;
+      background: #eef5fd;
+      border-radius: 10px;
+      border-left: 5px solid #4684c1;
+      box-sizing: border-box;
+    }
+    .question {
+      font-weight: bold;
+      color: #243b55;
+      margin-bottom: 7px;
+    }
+    .input-row {
+      display: flex;
+      gap: 7px;
+      margin-top: 10px;
+      align-items: center;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 1em;
+      border: 1px solid #add8f3;
+      border-radius: 4px;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input[type="text"]:focus {
+      border: 1.5px solid #3498db;
+    }
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover {
+      background: #2174a8;
+    }
+    .empty {
+      font-style: italic;
+      color: #8390a7;
+      text-align: center;
+    }
+    .tabbar {
+      text-align: center; margin-bottom: 20px;
+    }
+    .tabbar button {
+      font-weight: bold;
+      margin: 0 7px;
+      background: #eef5fd;
+      color: #3498db;
+      border: none;
+      border-radius: 7px;
+      padding: 8px 18px;
+      cursor: pointer;
+    }
+    .tabbar button.active {
+      background: #3498db;
+      color: white;
+    }
+    .history {
+      font-size: 0.96em;
+      color: #243b55;
+      margin-top: 8px;
+    }
+    .status {
+      font-size: 0.88em;
+      font-weight: bold;
+      color: #a98412;
+      margin-left: 6px;
+    }
+    .status.resolved { color: #278a18; }
+    .status.unresolved { color: #c22e1b; }
+    .status.pending { color: #a98412; }
+  </style>
+  <script>
+    let typing = false, currentTab = 'requests';
+
+    async function fetchRequests() {
+      if (typing) return;
+      let res = await fetch('/requests');
+      let data = await res.json();
+      document.getElementById('reqs').innerHTML = data.length > 0
+        ? data.map(r =>
+          `<div class="request">
+            <div class="question">Q: ${r.question}</div>
+            <div class="input-row">
+              <input type="text" id="ans${r.id}" placeholder="Supervisor answer"
+                onfocus="typing=true" onblur="typing=false">
+              <button onclick="answer(${r.id})">Submit</button>
+            </div>
+          </div>`
+        ).join('')
+        : `<div class="empty">No pending requests.</div>`;
+    }
+
+    async function fetchHistory() {
+      let res = await fetch('/history');
+      let data = await res.json();
+      document.getElementById('history').innerHTML = data.length > 0
+        ? data.map(r =>
+          `<div class="history">
+            <span class="question">Q: ${r.question}</span>
+            <span class="status ${r.status}">[${r.status}]</span>
+            <br/><span><b>Answer:</b> ${r.answer || "-"}</span>
+            <br/><span><b>Customer:</b> ${r.customer}</span>
+          </div>`
+        ).join('<hr/>')
+        : `<div class="empty">No history found.</div>`;
+    }
+
+    async function answer(id) {
+      let answer = document.getElementById('ans' + id).value;
+      await fetch('/answer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id, answer})
+      });
+      typing = false;
+      fetchRequests();
+      fetchHistory();
+    }
+
+    function showTab(tab) {
+      currentTab = tab;
+      document.getElementById('reqsTab').style.display = tab === 'requests' ? 'block' : 'none';
+      document.getElementById('historyTab').style.display = tab === 'history' ? 'block' : 'none';
+      document.getElementById('tabBtnRequests').classList.toggle("active", tab === 'requests');
+      document.getElementById('tabBtnHistory').classList.toggle("active", tab === 'history');
+      if (tab === 'requests') fetchRequests();
+      else fetchHistory();
+    }
+
+    window.onload = function() {
+      showTab('requests');
+      setInterval(() => {
+        if (currentTab === 'requests') fetchRequests();
+        else fetchHistory();
+      }, 5000);
+    };
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h2>Supervisor Panel</h2>
+    <div class="tabbar">
+      <button id="tabBtnRequests" class="active" onclick="showTab('requests')" type="button">Pending Requests</button>
+      <button id="tabBtnHistory" onclick="showTab('history')" type="button">History</button>
+    </div>
+    <div id="reqsTab">
+      <div id="reqs"></div>
+    </div>
+    <div id="historyTab" style="display:none;">
+      <div id="history"></div>
+    </div>
+  </div>
+</body>
+</html>

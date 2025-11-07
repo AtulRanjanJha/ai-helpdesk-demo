@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database (optional - include if you don't want to push the DB)
+helpdesk.db
+
+# OS files
+.DS_Store
+Thumbs.db
